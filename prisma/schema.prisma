@@ -4,34 +4,50 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
+  url = "file:./dev.db"
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
+  id        String    @id @default(cuid())
+  email     String    @unique
   password  String
   name      String?
+  score     Int       @default(0)
   models    Model[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  likes     Like[]
+  comments  Comment[]
 }
 
 model Model {
-  id          String   @id @default(cuid())
-  url         String   @unique
-  imageUrl    String
-  modelUrl    String?
-  type        String
-  provider    String
-  prompt      String?
-  status      String   @default("processing")
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  metadata    String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  @@index([userId])
-  @@index([url])
+  id         String    @id @default(cuid())
+  name       String
+  url        String
+  game       String
+  category   String    @default("vehicle")
+  partCount  Int       @default(1)
+  isForged   Boolean   @default(false)
+  components String  @default("[]")
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+  likes      Like[]
+  comments   Comment[]
+  createdAt  DateTime  @default(now())
+}
+
+model Like {
+  id      String @id @default(cuid())
+  userId  String
+  modelId String
+  user    User   @relation(fields: [userId], references: [id])
+  model   Model  @relation(fields: [modelId], references: [id])
+  @@unique([userId, modelId])
+}
+
+model Comment {
+  id      String @id @default(cuid())
+  text    String
+  userId  String
+  modelId String
+  user    User   @relation(fields: [userId], references: [id])
+  model   Model  @relation(fields: [modelId], references: [id])
 }

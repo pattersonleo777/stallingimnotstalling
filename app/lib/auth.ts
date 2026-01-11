@@ -1,27 +1,37 @@
-import bcrypt from 'bcryptjs';
-import { prisma } from './db';
+import { PrismaAdapter } from "@auth/prisma-adapter";
+import { prisma } from "./db";
+import NextAuth from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
+import bcrypt from "bcryptjs";
 
-export async function hashPassword(password: string) {
-  return bcrypt.hash(password, 12);
-}
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  adapter: PrismaAdapter(prisma),
+  providers: [
+    CredentialsProvider({
+      name: "credentials",
+      credentials: {
+        email: { label: "Email", type: "text" },
+        password: { label: "Password", type: "password" }
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) return null;
+        const user = await prisma.user.findUnique({ where: { email: credentials.email as string } });
+        if (!user || !user.password) return null;
+        const isPasswordValid = await bcrypt.compare(credentials.password as string, user.password);
+        return isPasswordValid ? user : null;
+      }
+    })
+  ],
+  session: { strategy: "jwt" },
+  callbacks: {
+    async session({ session, token }: any) {
+      if (session.user) { (session.user as any).id = token.sub; }
+      return session;
+    }
+  },
+  secret: process.env.NEXTAUTH_SECRET || "fallback-secret-replace-me",
+  pages: { signIn: '/login' }
+});
 
-export async function verifyPassword(password: string, hashedPassword: string) {
-  return bcrypt.compare(password, hashedPassword);
-}
-
-export async function createUser(email: string, password: string, name?: string) {
-  const hashedPassword = await hashPassword(password);
-  return prisma.user.create({
-    data: {
-      email,
-      password: hashedPassword,
-      name,
-    },
-  });
-}
-
-export async function getUserByEmail(email: string) {
-  return prisma.user.findUnique({
-    where: { email },
-  });
-}
+// Create a compatibility export so other files don't break
+export const authOptions = {}; 
