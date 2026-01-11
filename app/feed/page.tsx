@@ -1,72 +1,51 @@
-"use client";
-import React, { useEffect, useState } from 'react';
-import ModelViewer from '@/app/components/ModelViewer';
-import Link from 'next/link';
-import { calculateLevel } from '@/app/lib/leveling';
+import { prisma } from "@/lib/prisma";
+import { calculateLevel } from "@/lib/utils";
 
-export default function GlobalFeed() {
-  const [items, setItems] = useState([]);
+export const dynamic = "force-dynamic";
 
-  useEffect(() => {
-    fetch('/api/feed').then(res => res.json()).then(setItems);
-  }, []);
+async function getFeedData() {
+  const items = await prisma.feedItem.findMany({
+    include: {
+      user: {
+        include: {
+          models: true,
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
+  return items;
+}
 
-  const handleAction = async (modelId: string, action: string) => {
-    const text = action === 'comment' ? prompt("Enter message:") : null;
-    if (action === 'comment' && !text) return;
-
-    await fetch('/api/social', {
-      method: 'POST',
-      body: JSON.stringify({ modelId, action, text })
-    });
-    alert("Social Interaction Logged");
-  };
+export default async function FeedPage() {
+  const items = await getFeedData();
 
   return (
-    <div style={{ minHeight: '100vh', background: '#050505', color: 'white', padding: '40px' }}>
-      <header style={{ textAlign: 'center', marginBottom: '50px' }}>
-        <h1 style={{ color: '#00f2fe', letterSpacing: '2px', textShadow: '0 0 10px #00f2fe' }}>GLOBAL ARMORY</h1>
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '20px' }}>
-            <Link href="/leaderboard" style={{ color: '#ff0055', textDecoration: 'none' }}>🏆 Leaderboard</Link>
-            <Link href="/profile" style={{ color: '#aaa', textDecoration: 'none' }}>👤 Your Hangar</Link>
-        </div>
-      </header>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '30px' }}>
+    <div className="container mx-auto py-10 px-4">
+      <h1 className="text-4xl font-bold mb-8 text-center bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+        Pilot Activity Feed
+      </h1>
+      
+      <div className="grid gap-6 max-w-4xl mx-auto">
         {items.map((item: any) => {
-          const userModels = item.user.models || [];
-          const totalParts = userModels.reduce((acc, m) => acc + (m.partCount || 1), 0);
+          const userModels = item.user?.models || [];
+          const totalParts = userModels.reduce((acc: number, m: any) => acc + (m.partCount || 1), 0);
           const pilotStats = calculateLevel(userModels.length, totalParts);
 
           return (
-            <div key={item.id} style={{ background: '#111', borderRadius: '15px', padding: '20px', border: '1px solid #333', position: 'relative' }}>
-              {/* Level Badge Overlay */}
-              <div style={{ position: 'absolute', top: '-10px', right: '10px', background: '#00f2fe', color: 'black', padding: '5px 12px', borderRadius: '5px', fontWeight: 'bold', fontSize: '12px', boxShadow: '0 0 15px #00f2fe' }}>
-                LVL {pilotStats.level}
-              </div>
-
-              <div style={{ height: '320px', marginBottom: '15px', background: '#000', borderRadius: '10px' }}>
-                <ModelViewer url={item.url} />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div key={item.id} className="bg-slate-900/50 border border-slate-800 p-6 rounded-xl backdrop-blur-sm">
+              <div className="flex justify-between items-center">
                 <div>
-                  <h3 style={{ margin: 0, fontSize: '20px' }}>{item.name}</h3>
-                  <p style={{ color: '#00f2fe', fontSize: '11px', margin: '5px 0' }}>{pilotStats.title.toUpperCase()}</p>
-                  <p style={{ color: '#666', fontSize: '13px' }}>Pilot: <span style={{color: '#fff'}}>{item.user.name || 'Unknown'}</span></p>
+                  <h3 className="text-xl font-bold text-cyan-400">{item.user?.name || "Unknown Pilot"}</h3>
+                  <p className="text-slate-400 text-sm">
+                    {item.type === "MODEL_CREATED" ? "Forged a new orbital rod" : "Updated their arsenal"}
+                  </p>
                 </div>
-                <div style={{ textAlign: 'right', fontSize: '12px', color: '#444' }}>
-                   {item.game.replace('-', ' ').toUpperCase()}
+                <div className="text-right">
+                  <div className="text-xs text-slate-500 uppercase tracking-widest">Rank</div>
+                  <div className="text-lg font-mono text-white">LVL {pilotStats.level}</div>
                 </div>
-              </div>
-
-              <div style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
-                <button onClick={() => handleAction(item.id, 'like')} style={{ flex: 1, padding: '10px', background: 'transparent', border: '1px solid #ff0055', color: '#ff0055', cursor: 'pointer', borderRadius: '5px' }}>
-                  ❤️ {item._count.likes} LIKES
-                </button>
-                <button onClick={() => handleAction(item.id, 'comment')} style={{ flex: 1, padding: '10px', background: 'transparent', border: '1px solid #00f2fe', color: '#00f2fe', cursor: 'pointer', borderRadius: '5px' }}>
-                  💬 {item._count.comments}
-                </button>
               </div>
             </div>
           );
