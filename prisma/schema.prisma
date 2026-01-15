@@ -8,14 +8,27 @@ datasource db {
 }
 
 model User {
-  id        String    @id @default(cuid())
-  email     String    @unique
-  password  String
-  name      String?
-  score     Int       @default(0)
-  models    Model[]
-  likes     Like[]
-  comments  Comment[]
+  id          String       @id @default(cuid())
+  email       String       @unique
+  password    String
+  name        String?
+  score       Int          @default(0)
+  xp          Int          @default(0)
+  level       Int          @default(1)
+  credits     Int          @default(1000)
+  wins        Int          @default(0)
+  losses      Int          @default(0)
+  models      Model[]
+  likes       Like[]
+  comments    Comment[]
+  cars        Car[]
+  parts       Part[]
+  wagers      Wager[]
+  friendships Friendship[] @relation("UserFriends")
+  friendOf    Friendship[] @relation("FriendOf")
+  auctions    Auction[]
+  bids        Bid[]
+  createdAt   DateTime     @default(now())
 }
 
 model Model {
@@ -26,12 +39,110 @@ model Model {
   category   String    @default("vehicle")
   partCount  Int       @default(1)
   isForged   Boolean   @default(false)
-  components String  @default("[]")
+  components String    @default("[]")
   userId     String
   user       User      @relation(fields: [userId], references: [id])
   likes      Like[]
   comments   Comment[]
   createdAt  DateTime  @default(now())
+}
+
+model Car {
+  id            String    @id @default(cuid())
+  name          String
+  make          String
+  model         String
+  year          Int
+  imageUrl      String?
+  baseStats     String    @default("{}")
+  currentStats  String    @default("{}")
+  livery        String    @default("{}")
+  paint         String    @default("#ff0000")
+  bodyKit       String?
+  wheels        String?
+  raceNumber    Int       @default(0)
+  vinylLayers   String    @default("[]")
+  horsepower    Int       @default(100)
+  torque        Int       @default(100)
+  weight        Int       @default(2500)
+  grip          Float     @default(1.0)
+  acceleration  Float     @default(1.0)
+  topSpeed      Float     @default(1.0)
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  installedParts Part[]
+  wagers        Wager[]
+  auctions      Auction[]
+  createdAt     DateTime  @default(now())
+}
+
+model Part {
+  id           String   @id @default(cuid())
+  name         String
+  type         String
+  rarity       String   @default("common")
+  imageUrl     String?
+  statBoosts   String   @default("{}")
+  unlockLevel  Int      @default(1)
+  price        Int      @default(100)
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id])
+  carId        String?
+  car          Car?     @relation(fields: [carId], references: [id])
+  auctions     Auction[]
+  createdAt    DateTime @default(now())
+}
+
+model Wager {
+  id          String   @id @default(cuid())
+  amount      Int
+  status      String   @default("pending")
+  winnerId    String?
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  carId       String
+  car         Car      @relation(fields: [carId], references: [id])
+  opponentId  String?
+  raceResult  String   @default("{}")
+  createdAt   DateTime @default(now())
+}
+
+model Friendship {
+  id        String   @id @default(cuid())
+  status    String   @default("pending")
+  userId    String
+  user      User     @relation("UserFriends", fields: [userId], references: [id])
+  friendId  String
+  friend    User     @relation("FriendOf", fields: [friendId], references: [id])
+  createdAt DateTime @default(now())
+  @@unique([userId, friendId])
+}
+
+model Auction {
+  id          String   @id @default(cuid())
+  startPrice  Int
+  currentBid  Int      @default(0)
+  buyNowPrice Int?
+  status      String   @default("active")
+  endsAt      DateTime
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  carId       String?
+  car         Car?     @relation(fields: [carId], references: [id])
+  partId      String?
+  part        Part?    @relation(fields: [partId], references: [id])
+  bids        Bid[]
+  createdAt   DateTime @default(now())
+}
+
+model Bid {
+  id        String   @id @default(cuid())
+  amount    Int
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  auctionId String
+  auction   Auction  @relation(fields: [auctionId], references: [id])
+  createdAt DateTime @default(now())
 }
 
 model Like {
